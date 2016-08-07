@@ -129,7 +129,7 @@ public class Main {
         }
 
         progress.set("Running launcher...", 95);
-        Main.runJar(jarFile, args);
+        Main.runJar(jarFile, lzmaFile, args);
     }
 
     public static boolean pgpVerify(File file, String signatureAsc) throws PGPException, SignatureException, IOException {
@@ -169,7 +169,7 @@ public class Main {
         }
     }
 
-    public static void runJar(File jar, String[] args) {
+    public static void runJar(File jar, File lzma, String[] args) throws Exception {
         if (jar == null) {
             System.out.println("Failure finding metadata for jar");
             return;
@@ -180,6 +180,7 @@ public class Main {
         }
         System.out.println("Running jar: " + jar.getName());
         progress.disposeLater(1000L);
+        Method method;
         try {
             URLClassLoader sysLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
             Method addURLMethod = URLClassLoader.class.getDeclaredMethod("addURL", new Class[]{URL.class});
@@ -187,7 +188,13 @@ public class Main {
             addURLMethod.invoke(sysLoader, new Object[]{jar.toURI().toURL()});
 
             Class<?> mainClass = sysLoader.loadClass("com.squidhq.launcher.Main");
-            Method method = mainClass.getDeclaredMethod("main", String[].class);
+            method = mainClass.getDeclaredMethod("main", String[].class);
+        } catch (Exception exception) {
+            jar.delete();
+            lzma.delete();
+            throw exception;
+        }
+        try {
             method.invoke(null, new Object[]{args});
         } catch (Exception exception) {
             exception.printStackTrace();
