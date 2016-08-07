@@ -39,7 +39,7 @@ public class Main {
     public static void main(String[] args) {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch(Exception exception) {
+        } catch (Exception exception) {
             exception.printStackTrace();
         }
         System.setProperty("java.net.preferIPv4Stack", "true");
@@ -56,15 +56,20 @@ public class Main {
             FileUtils.copyURLToFile(new URL(METACDN_LAUNCHER), metaFileNew, 5000, 5000);
             packMeta = FileUtils.readFileToString(metaFileNew, Charsets.UTF_8);
             Main.tryMeta(metaFileNew, metaFile, packMeta, args);
+            return;
         } catch (Exception exception) {
             exception.printStackTrace();
             try {
                 packMeta = FileUtils.readFileToString(metaFile, Charsets.UTF_8);
                 Main.tryMeta(metaFile, metaFile, packMeta, args);
+                return;
             } catch(Exception exception1) {
                 exception1.printStackTrace();
             }
         }
+
+        JOptionPane.showMessageDialog(null, "There was an unexpected error while starting SquidHQ! Try again later", "Error", JOptionPane.ERROR_MESSAGE);
+        System.exit(1);
     }
 
     public static void tryMeta(File metaFile, File copyTo, String packMeta, String[] args) throws Exception {
