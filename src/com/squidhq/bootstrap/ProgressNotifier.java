@@ -1,5 +1,6 @@
 package com.squidhq.bootstrap;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 
@@ -26,6 +27,11 @@ public class ProgressNotifier {
         this.frame.setLocationRelativeTo(null);
         this.frame.setResizable(false);
         this.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        try {
+            this.frame.setIconImage(ImageIO.read(ProgressNotifier.class.getResourceAsStream("/64x64.png")));
+        } catch(Exception exception) {
+            exception.printStackTrace();
+        }
     }
 
     public void show() {
