@@ -173,16 +173,7 @@ public class Main {
             return;
         }
         System.out.println("Running jar: " + jar.getName());
-        new Thread() {
-            public void run() {
-                try {
-                    Thread.sleep(1000L);
-                } catch(InterruptedException exception) {
-                    // ignore
-                }
-                progress.dispose();
-            }
-        }.start();
+        progress.disposeLater(1000L);
         try {
             URLClassLoader sysLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
             Method addURLMethod = URLClassLoader.class.getDeclaredMethod("addURL", new Class[]{URL.class});
