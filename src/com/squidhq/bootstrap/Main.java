@@ -88,15 +88,6 @@ public class Main {
         if (jarFile.exists()) {
             System.out.println("Found jar: " + jarFile.getName());
         } else {
-            File[] toCleanup = squidDirectory.listFiles();
-            for (File cleanup : toCleanup) {
-                if (!cleanup.getName().endsWith(".lzma") && !cleanup.getName().endsWith(".jar")) {
-                    continue;
-                }
-                cleanup.delete();
-                System.out.println("Cleaned up: " + cleanup.getName());
-            }
-
             progress.set("Downloading launcher...", 25);
             final String packSha1URL = ASSETCDN + packSha1;
             FileUtils.copyURLToFile(new URL(packSha1URL), lzmaFile, 5000, 5000);
@@ -125,6 +116,16 @@ public class Main {
             }
         } finally {
             metaFile.delete();
+        }
+
+        File[] toCleanup = squidDirectory.listFiles();
+        for (File cleanup : toCleanup) {
+            if (!cleanup.getName().endsWith(".lzma") && !cleanup.getName().endsWith(".jar")
+                || !cleanup.equals(lzmaFile) || !cleanup.equals(jarFile)) {
+                continue;
+            }
+            cleanup.delete();
+            System.out.println("Cleaned up: " + cleanup.getName());
         }
 
         progress.set("Running launcher...", 95);
