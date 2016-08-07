@@ -3,6 +3,7 @@ package com.squidhq.bootstrap;
 import com.squidhq.bootstrap.util.LangUtil;
 import com.squidhq.bootstrap.util.OSUtil;
 import com.squidhq.bootstrap.util.PGPUtil;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.compress.compressors.lzma.LZMACompressorInputStream;
 import org.apache.commons.compress.utils.Charsets;
 import org.apache.commons.io.FileUtils;
@@ -93,6 +94,16 @@ public class Main {
             FileUtils.copyURLToFile(new URL(packSha1URL), lzmaFile, 5000, 5000);
             System.out.println("Downloaded lzma: " + packSha1URL + " to: " + lzmaFile.getName());
 
+            InputStream inputStream = new FileInputStream(lzmaFile);
+            try {
+                if (!DigestUtils.sha1Hex(inputStream).equals(packSha1)) {
+                    lzmaFile.delete();
+                    throw new Exception("Sha1 mismatch");
+                }
+            } finally {
+                LangUtil.close(inputStream);
+            }
+
             progress.set("Decompressing launcher...", 65);
             Main.deLZMA(lzmaFile, jarFile);
             System.out.println("Decompressed jar: " + jarFile.getName());
@@ -104,9 +115,13 @@ public class Main {
             try {
                 valid = Main.pgpVerify(lzmaFile, packSignature);
             } catch (Exception exception) {
+                jarFile.delete();
+                lzmaFile.delete();
                 throw exception;
             }
             if (!valid) {
+                jarFile.delete();
+                lzmaFile.delete();
                 throw new Exception("Signature invalid");
             } else {
                 System.out.println("Signature valid");

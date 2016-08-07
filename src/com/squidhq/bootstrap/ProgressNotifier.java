@@ -25,6 +25,7 @@ public class ProgressNotifier {
         this.frame.setSize(jPanel.getSize());
         this.frame.setLocationRelativeTo(null);
         this.frame.setResizable(false);
+        this.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 
     public void show() {
