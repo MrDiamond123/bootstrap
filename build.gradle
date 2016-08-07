@@ -1,0 +1,58 @@
+apply plugin: 'idea'
+apply plugin: 'java'
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+
+configurations {
+    provided
+    shadow
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+        }
+        resources {
+            srcDir 'src'
+        }
+    }
+    main {
+        compileClasspath += configurations.provided
+        compileClasspath += configurations.shadow
+    }
+}
+
+jar {
+    version = null
+    manifest {
+        attributes (
+            'Main-Class': 'com.squidhq.bootstrap.Main'
+        )
+    }
+    doFirst {
+        from { configurations.shadow.collect { it.isDirectory() ? it : zipTree(it) } } 
+    }
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA' 
+    
+}
+
+repositories {
+    mavenLocal()
+    jcenter()
+}
+
+dependencies {
+    compile 'commons-io:commons-io:2.5'
+    compile 'org.apache.commons:commons-compress:1.12'
+    compile 'org.tukaani:xz:1.5'
+    compile 'org.bouncycastle:bcprov-jdk15on:1.48'
+    compile 'org.bouncycastle:bcpg-jdk15on:1.48'
+
+    shadow 'commons-io:commons-io:2.5'
+    shadow 'org.apache.commons:commons-compress:1.12'
+    shadow 'org.tukaani:xz:1.5'
+    shadow 'org.bouncycastle:bcprov-jdk15on:1.48'
+    shadow 'org.bouncycastle:bcpg-jdk15on:1.48'
+}
