@@ -1,9 +1,11 @@
 package com.squidhq.bootstrap.util;
 
+import java.io.Closeable;
+
 public class LangUtil {
 
-    public static void close(AutoCloseable... closeables) {
-        for(AutoCloseable closeable : closeables) {
+    public static void close(Closeable... closeables) {
+        for(Closeable closeable : closeables) {
             if (closeable != null) {
                 try {
                     closeable.close();
@@ -14,8 +16,8 @@ public class LangUtil {
         }
     }
 
-    public static void close(Iterable<? extends AutoCloseable> closeables) {
-        for(AutoCloseable closeable : closeables) {
+    public static void close(Iterable<? extends Closeable> closeables) {
+        for(Closeable closeable : closeables) {
             if (closeable != null) {
                 try {
                     closeable.close();
