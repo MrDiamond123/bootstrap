@@ -1,3 +1,7 @@
+plugins {
+    id "edu.sc.seis.macAppBundle" version "2.1.6"
+}
+
 apply plugin: 'idea'
 apply plugin: 'java'
 
@@ -58,3 +62,9 @@ dependencies {
     shadow 'org.bouncycastle:bcprov-jdk15on:1.48'
     shadow 'org.bouncycastle:bcpg-jdk15on:1.48'
 }
+
+macAppBundle {
+    mainClassName = "com.squidhq.bootstrap.Main"
+    icon = "resources/mac.icns"
+}
+
