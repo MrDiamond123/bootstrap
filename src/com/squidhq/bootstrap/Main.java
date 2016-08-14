@@ -14,6 +14,7 @@ import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
 import javax.swing.*;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.SignatureException;
@@ -35,16 +37,30 @@ public class Main {
     public static final File workingDirectory = OSUtil.getWorkingDirectory();
     public static final File squidDirectory = new File(workingDirectory, "squidhq");
 
-    public static final ProgressNotifier progress = new ProgressNotifier("SquidHQ");
+    public static final ProgressNotifier progress;
 
-    public static void main(String[] args) {
+    static {
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            String lookAndFeel = UIManager.getSystemLookAndFeelClassName();
+            if (lookAndFeel.equals("javax.swing.plaf.metal.MetalLookAndFeel")) {
+                for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    if (!info.getClassName().equals("com.sun.java.swing.plaf.gtk.GTKLookAndFeel")) {
+                        continue;
+                    }
+                    lookAndFeel = info.getClassName();
+                    break;
+                }
+            }
+            UIManager.setLookAndFeel(lookAndFeel);
         } catch (Exception exception) {
             exception.printStackTrace();
         }
+        progress = new ProgressNotifier("SquidHQ");
+    }
+
+    public static void main(String[] args) {
         System.setProperty("java.net.preferIPv4Stack", "true");
-        System.setProperty("http.agent", "SquidHQ Bootstrap/1.0");
+        System.setProperty("http.agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36");
         squidDirectory.mkdirs();
         progress.show();
 
@@ -53,8 +69,7 @@ public class Main {
 
         String packMeta;
         try {
-            progress.set("Downloading meta...", 10);
-            FileUtils.copyURLToFile(new URL(METACDN_LAUNCHER), metaFileNew, 5000, 5000);
+            Main.download(new URL(METACDN_LAUNCHER), metaFileNew, "Downloading meta...", 5000);
             packMeta = FileUtils.readFileToString(metaFileNew, Charsets.UTF_8);
             Main.tryMeta(metaFileNew, metaFile, packMeta, args);
             return;
@@ -89,9 +104,8 @@ public class Main {
         if (jarFile.exists()) {
             System.out.println("Found jar: " + jarFile.getName());
         } else {
-            progress.set("Downloading launcher...", 25);
             final String packSha1URL = ASSETCDN + packSha1;
-            FileUtils.copyURLToFile(new URL(packSha1URL), lzmaFile, 5000, 5000);
+            Main.download(new URL(packSha1URL), lzmaFile, "Downloading launcher...", 5000);
             System.out.println("Downloaded lzma: " + packSha1URL + " to: " + lzmaFile.getName());
 
             InputStream inputStream = new FileInputStream(lzmaFile);
@@ -104,16 +118,14 @@ public class Main {
                 LangUtil.close(inputStream);
             }
 
-            progress.set("Decompressing launcher...", 65);
-            Main.deLZMA(lzmaFile, jarFile);
+            Main.decompress(lzmaFile, jarFile, "Decompressing launcher...");
             System.out.println("Decompressed jar: " + jarFile.getName());
         }
 
         try {
-            progress.set("Verifying launcher...", 85);
             boolean valid;
             try {
-                valid = Main.pgpVerify(lzmaFile, packSignature);
+                valid = Main.pgpVerify(lzmaFile, packSignature, "Verifying launcher...");
             } catch (Exception exception) {
                 jarFile.delete();
                 lzmaFile.delete();
@@ -136,18 +148,64 @@ public class Main {
         File[] toCleanup = squidDirectory.listFiles();
         for (File cleanup : toCleanup) {
             if (!cleanup.getName().endsWith(".lzma") && !cleanup.getName().endsWith(".jar")
-                || !cleanup.equals(lzmaFile) || !cleanup.equals(jarFile)) {
+                || cleanup.equals(lzmaFile) || cleanup.equals(jarFile)) {
                 continue;
             }
             cleanup.delete();
             System.out.println("Cleaned up: " + cleanup.getName());
         }
 
-        progress.set("Running launcher...", 95);
+        progress.set("Running launcher...", 100);
         Main.runJar(jarFile, lzmaFile, args);
     }
 
-    public static boolean pgpVerify(File file, String signatureAsc) throws PGPException, SignatureException, IOException {
+    public static void download(URL url, File to, String progressTitle, int timeout) throws IOException {
+        progress.set(progressTitle, 0);
+        InputStream inputStream = null;
+        OutputStream outputStream = null;
+        try {
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(timeout);
+            connection.setReadTimeout(timeout);
+            inputStream = new BufferedInputStream(connection.getInputStream());
+            outputStream = new FileOutputStream(to);
+            long length = connection.getContentLength();
+            byte[] b = new byte[1024];
+            int n;
+            int nTotal = 0;
+            while (0 <= (n = inputStream.read(b))) {
+                outputStream.write(b, 0, n);
+                nTotal += n;
+                progress.set(progressTitle, (int) Math.round(((double) nTotal / length) * 100));
+            }
+        } finally {
+            LangUtil.close(inputStream, outputStream);
+        }
+    }
+
+    public static void decompress(File from, File to, String progressTitle) throws IOException {
+        progress.set(progressTitle, 0);
+        InputStream inputStream = null;
+        OutputStream outputStream = null;
+        try {
+            inputStream = new LZMACompressorInputStream(new FileInputStream(from));
+            outputStream = new FileOutputStream(to);
+            long length = from.length();
+            byte[] b = new byte[1024];
+            int n;
+            int nTotal = 0;
+            while (0 <= (n = inputStream.read(b))) {
+                outputStream.write(b, 0, n);
+                nTotal += n;
+                progress.set(progressTitle, (int) Math.round(((double) nTotal / length) * 100));
+            }
+        } finally {
+            LangUtil.close(inputStream, outputStream);
+        }
+    }
+
+    public static boolean pgpVerify(File file, String signatureAsc, String progressTitle) throws PGPException, SignatureException, IOException {
+        progress.set(progressTitle, 0);
         PGPPublicKey publicKey = PGPUtil.readPublicKey(Main.class.getResourceAsStream("/squidhq.asc"));
         PGPSignatureList signatureKey = PGPUtil.readSignatureFile(new ByteArrayInputStream(signatureAsc.getBytes(Charsets.UTF_8)));
         PGPSignature signature = signatureKey.get(0);
@@ -156,32 +214,20 @@ public class Main {
         InputStream inputStream = null;
         try {
             inputStream = new FileInputStream(file);
+            long length = file.length();
             byte[] b = new byte[1024];
             int n;
+            int nTotal = 0;
             while (0 <= (n = inputStream.read(b))) {
                 signature.update(b, 0, n);
+                nTotal += n;
+                progress.set(progressTitle, (int) Math.round(((double) nTotal / length) * 100));
             }
         } finally {
             LangUtil.close(inputStream);
         }
 
         return signature.verify();
-    }
-
-    public static void deLZMA(File from, File to) throws IOException {
-        InputStream inputStream = null;
-        OutputStream outputStream = null;
-        try {
-            inputStream = new LZMACompressorInputStream(new FileInputStream(from));
-            outputStream = new FileOutputStream(to);
-            byte[] b = new byte[1024];
-            int n;
-            while (0 <= (n = inputStream.read(b))) {
-                outputStream.write(b, 0, n);
-            }
-        } finally {
-            LangUtil.close(inputStream, outputStream);
-        }
     }
 
     public static void runJar(File jar, File lzma, String[] args) throws Exception {
